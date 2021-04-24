@@ -27,20 +27,31 @@ package main
 import (
 	"log"
 	"net/http"
+	"path/filepath"
+	"sync"
+	"text/template"
 )
 
-func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`
-			<html>
-				<head>
-					<title>Chat</title>
-				</head>
-				<body>
-					Let's chat!
-				</body>
-			</html>`))
+// templateHandler implements a handler for loading, compiling, and
+// serving our template.
+type templateHandler struct {
+	once     sync.Once
+	root     string // root of application data
+	filename string
+	templ    *template.Template // represents a single template
+}
+
+// ServeHTTP handles the HTTP request.
+func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	t.once.Do(func() {
+		t.templ = template.Must(template.ParseFiles(filepath.Join(t.root, "templates", t.filename)))
 	})
+	_ = t.templ.Execute(w, nil)
+}
+
+func main() {
+	// root
+	http.Handle("/", &templateHandler{root: "D:/GoLand/goblueprints/cmd/chat", filename: "chat.html"})
 	// start the web server
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
