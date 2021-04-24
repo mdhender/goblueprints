@@ -24,42 +24,40 @@
 
 package main
 
-import (
-	"log"
-	"net/http"
-	"path/filepath"
-	"sync"
-	"text/template"
-)
+import "github.com/gorilla/websocket"
 
-// templateHandler implements a handler for loading, compiling, and
-// serving our template.
-type templateHandler struct {
-	once     sync.Once
-	root     string // root of application data
-	filename string
-	templ    *template.Template // represents a single template
+// client represents a single chatting user.
+type client struct {
+	// socket is the web socket for this client.
+	socket *websocket.Conn
+	// send is a channel on which messages are sent.
+	send chan []byte
+	// room is the room this client is chatting in
+	room *room
 }
 
-// ServeHTTP handles the HTTP request.
-func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	t.once.Do(func() {
-		t.templ = template.Must(template.ParseFiles(filepath.Join(t.root, "templates", t.filename)))
-	})
-	_ = t.templ.Execute(w, nil)
+func (c *client) read() {
+	defer func(socket *websocket.Conn) {
+		_ = socket.Close()
+	}(c.socket)
+
+	for {
+		_, msg, err := c.socket.ReadMessage()
+		if err != nil {
+			return
+		}
+		c.room.forward <- msg
+	}
 }
 
-func main() {
-	r := newRoom()
-
-	http.Handle("/", &templateHandler{root: "D:/GoLand/goblueprints/cmd/chat", filename: "chat.html"})
-	http.Handle("/room", r)
-
-	// get the room going
-	go r.run()
-
-	// start the web server
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal("ListenAndServe:", err)
+func (c *client) write() {
+	defer func(socket *websocket.Conn) {
+		_ = socket.Close()
+	}(c.socket)
+	for msg := range c.send {
+		err := c.socket.WriteMessage(websocket.TextMessage, msg)
+		if err != nil {
+			return
+		}
 	}
 }
