@@ -79,6 +79,7 @@ func main() {
 	http.Handle("/assets/", http.StripPrefix("/assets", http.FileServer(http.Dir(filepath.Join(cfg.root, "assets")))))
 	http.Handle("/chat", MustAuth(&templateHandler{root: cfg.root, filename: "chat.html"}))
 	http.Handle("/login", &templateHandler{root: cfg.root, filename: "login.html"})
+	http.HandleFunc("/auth/", loginHandler)
 	http.Handle("/room", r)
 
 	// get the room going

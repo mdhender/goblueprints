@@ -24,10 +24,39 @@
 
 package main
 
-import "net/http"
+import (
+	"fmt"
+	"log"
+	"net/http"
+	"strings"
+)
 
 type authHandler struct {
 	next http.Handler
+}
+
+// loginHandler handles the third-party login processs.
+// format: /auth/:action/:provider
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	var action, provider string
+	// split will change /auth/login/google to a slice of 4,
+	// starting with the empty string before the first slash.
+	// In this case, [ 0:'', 1:'action', 2:'login', 3:'google' ]
+	segs := strings.Split(r.URL.Path, "/")
+	switch len(segs) {
+	case 4:
+		action, provider = segs[2], segs[3]
+	default:
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		return
+	}
+	switch action {
+	case "login":
+		log.Println("TODO handle login for", provider)
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Auth action %s not supported", action)
+	}
 }
 
 func (h *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
