@@ -27,9 +27,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/mdhender/goblueprints/pkg/trace"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sync"
 	"text/template"
@@ -54,9 +56,10 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	cfg := struct {
-		host string
-		port string
-		root string
+		host    string
+		port    string
+		root    string
+		tracing bool
 	}{
 		host: "localhost",
 		port: "8080",
@@ -65,9 +68,13 @@ func main() {
 	flag.StringVar(&cfg.host, "host", cfg.host, fmt.Sprintf("Host address of the application (default %q)", cfg.host))
 	flag.StringVar(&cfg.port, "port", cfg.port, fmt.Sprintf("Port of the application (default %q)", cfg.port))
 	flag.StringVar(&cfg.root, "root", cfg.root, fmt.Sprintf("Location of application data (default %q)", cfg.root))
+	flag.BoolVar(&cfg.tracing, "tracing", cfg.tracing, fmt.Sprintf("Turn tracing on (default %v)", cfg.tracing))
 	flag.Parse() // parse the flags
 
 	r := newRoom()
+	if cfg.tracing {
+		r.tracer = trace.New(os.Stdout)
+	}
 
 	http.Handle("/", &templateHandler{root: cfg.root, filename: "chat.html"})
 	http.Handle("/room", r)
@@ -78,6 +85,6 @@ func main() {
 	// start the web server
 	log.Println("Starting web server on", net.JoinHostPort(cfg.host, cfg.port))
 	if err := http.ListenAndServe(net.JoinHostPort(cfg.host, cfg.port), nil); err != nil {
-		log.Fatal("ListenAndServe:", err)
+		log.Fatal("ListenAndServe: ", err)
 	}
 }
