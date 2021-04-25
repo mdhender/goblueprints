@@ -25,7 +25,10 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -46,20 +49,35 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t.once.Do(func() {
 		t.templ = template.Must(template.ParseFiles(filepath.Join(t.root, "templates", t.filename)))
 	})
-	_ = t.templ.Execute(w, nil)
+	_ = t.templ.Execute(w, r)
 }
 
 func main() {
+	cfg := struct {
+		host string
+		port string
+		root string
+	}{
+		host: "localhost",
+		port: "8080",
+		root: "D:/GoLand/goblueprints/cmd/chat",
+	}
+	flag.StringVar(&cfg.host, "host", cfg.host, fmt.Sprintf("Host address of the application (default %q)", cfg.host))
+	flag.StringVar(&cfg.port, "port", cfg.port, fmt.Sprintf("Port of the application (default %q)", cfg.port))
+	flag.StringVar(&cfg.root, "root", cfg.root, fmt.Sprintf("Location of application data (default %q)", cfg.root))
+	flag.Parse() // parse the flags
+
 	r := newRoom()
 
-	http.Handle("/", &templateHandler{root: "D:/GoLand/goblueprints/cmd/chat", filename: "chat.html"})
+	http.Handle("/", &templateHandler{root: cfg.root, filename: "chat.html"})
 	http.Handle("/room", r)
 
 	// get the room going
 	go r.run()
 
 	// start the web server
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	log.Println("Starting web server on", net.JoinHostPort(cfg.host, cfg.port))
+	if err := http.ListenAndServe(net.JoinHostPort(cfg.host, cfg.port), nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
 }
