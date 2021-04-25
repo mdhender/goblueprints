@@ -76,7 +76,7 @@ func main() {
 		r.tracer = trace.New(os.Stdout)
 	}
 
-	http.Handle("/", &templateHandler{root: cfg.root, filename: "chat.html"})
+	http.Handle("/chat", MustAuth(&templateHandler{root: cfg.root, filename: "chat.html"}))
 	http.Handle("/room", r)
 
 	// get the room going
